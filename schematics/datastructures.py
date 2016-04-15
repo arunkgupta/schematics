@@ -1,10 +1,14 @@
+# -*- coding: utf-8 -*-
+# pylint: skip-file
+
+from __future__ import unicode_literals, absolute_import
+
 from copy import deepcopy
-from six.moves import zip
-from six import iteritems
-from six import PY3
+
+from .common import * # pylint: disable=redefined-builtin
+
 
 _missing = object()
-
 
 class OrderedDict(dict):
 
@@ -175,3 +179,141 @@ class OrderedDict(dict):
 
     __copy__ = copy
     __iter__ = iterkeys
+
+
+class DataObject(object):
+    """
+    An object for holding data as attributes.
+
+    ``DataObject`` can be instantiated like ``dict``::
+
+        >>> d = DataObject({'one': 1, 'two': 2}, three=3)
+        >>> d.__dict__
+        {'one': 1, 'two': 2, 'three': 3}
+
+    Attributes are accessible via the regular dot notation (``d.x``) as well as
+    the subscription syntax (``d['x']``)::
+
+        >>> d.one == d['one'] == 1
+        True
+
+    To convert a ``DataObject`` into a dictionary, use ``d._to_dict()``.
+
+    ``DataObject`` implements the following collection-like operations:
+
+        * iteration through attributes as name-value pairs
+        * ``'x' in d`` for membership tests
+        * ``len(d)`` to get the number of attributes
+
+    Additionally, the following methods are equivalent to their ``dict` counterparts:
+    ``_clear``, ``_get``, ``_keys``, ``_items``, ``_pop``, ``_setdefault``, ``_update``.
+
+    An advantage of ``DataObject`` over ``dict` subclasses is that every method name
+    in ``DataObject`` begins with an underscore, so attributes like ``"update"`` or
+    ``"values"`` are valid.
+    """
+
+    def __init__(self, *args, **kwargs):
+        source = args[0] if args else {}
+        self._update(source, **kwargs)
+
+    def __repr__(self):
+        return self.__class__.__name__ + '(%s)' % repr(self.__dict__)
+
+    def _copy(self):
+        return self.__class__(self)
+
+    __copy__ = _copy
+
+    def __eq__(self, other):
+        return isinstance(other, DataObject) and self.__dict__ == other.__dict__
+
+    def __iter__(self):
+        return iter(self.__dict__.items())
+
+    def _update(self, source=None, **kwargs):
+        if isinstance(source, DataObject):
+            source = source.__dict__
+        self.__dict__.update(source, **kwargs)
+
+    def _setdefaults(self, source):
+        if isinstance(source, dict):
+            source = source.items()
+        for name, value in source:
+            self._setdefault(name, value)
+        return self
+
+    def _to_dict(self):
+        d = dict(self.__dict__)
+        for k, v in d.items():
+            if isinstance(v, DataObject):
+                d[k] = v._to_dict()
+        return d
+
+    def __setitem__(self, key, value): self.__dict__[key] = value
+    def __getitem__(self, key): return self.__dict__[key]
+    def __delitem__(self, key): del self.__dict__[key]
+    def __len__(self): return len(self.__dict__)
+    def __contains__(self, key): return key in self.__dict__
+
+    def _clear(self): return self.__dict__.clear()
+    def _get(self, *args): return self.__dict__.get(*args)
+    def _items(self): return self.__dict__.items()
+    def _keys(self): return self.__dict__.keys()
+    def _pop(self, *args): return self.__dict__.pop(*args)
+    def _setdefault(self, *args): return self.__dict__.setdefault(*args)
+
+
+class Context(DataObject):
+
+    _fields = ()
+
+    def __init__(self, *args, **kwargs):
+        super(Context, self).__init__(*args, **kwargs)
+        if self._fields:
+            unknowns = [name for name in self._keys() if name not in self._fields]
+            if unknowns:
+                raise ValueError('Unexpected field names: %r' % unknowns)
+
+    @classmethod
+    def _new(cls, *args, **kwargs):
+        if len(args) > len(cls._fields):
+            raise TypeError('Too many positional arguments')
+        return cls(zip(cls._fields, args), **kwargs)
+
+    @classmethod
+    def _make(cls, obj):
+        if obj is None:
+            return cls()
+        elif isinstance(obj, cls):
+            return obj
+        else:
+            return cls(obj)
+
+    def __setattr__(self, name, value):
+        if name in self:
+            raise TypeError("Field '{0}' already set".format(name))
+        super(Context, self).__setattr__(name, value)
+
+    def _branch(self, **kwargs):
+        if not kwargs:
+            return self
+        items = dict(((k, v) for k, v in kwargs.items() if v is not None and v != self[k]))
+        if items:
+            return self.__class__(self, **items)
+        else:
+            return self
+
+    def _setdefaults(self, source):
+        if not isinstance(source, dict):
+            source = source.__dict__
+        new_values = source.copy()
+        new_values.update(self.__dict__)
+        self.__dict__.update(new_values)
+        return self
+
+    def __bool__(self):
+        return True
+
+    __nonzero__ = __bool__
+

@@ -1,19 +1,13 @@
 # -*- coding: utf-8 -*-
 import pytest
 
+from schematics.common import *
 from schematics.models import Model
 from schematics.types import StringType, LongType, IntType, MD5Type
 from schematics.types.compound import ModelType, DictType, ListType
 from schematics.types.serializable import serializable
 from schematics.transforms import blacklist, whitelist, wholelist, export_loop
 
-import six
-from six import iteritems
-try:
-    unicode #PY2
-except:
-    import codecs
-    unicode = str #PY3
 
 def test_serializable():
     class Location(Model):
@@ -30,7 +24,7 @@ def test_serializable():
     d = location_US.serialize()
     assert d == {"country_code": "US", "country_name": "United States"}
 
-    d = location_US.to_native()
+    d = location_US.to_dict()
     assert d == {"country_code": u"US", "country_name": "United States"}
 
     location_IS = Location({"country_code": "IS"})
@@ -40,11 +34,11 @@ def test_serializable():
     d = location_IS.serialize()
     assert d == {"country_code": "IS", "country_name": "Unknown"}
 
-    d = location_IS.to_native()
+    d = location_IS.to_dict()
     assert d == {"country_code": "IS", "country_name": "Unknown"}
 
 
-def test_serializable_to_native():
+def test_serializable_to_dict():
     class Location(Model):
         country_code = StringType()
 
@@ -54,7 +48,7 @@ def test_serializable_to_native():
 
     loc = Location({'country_code': 'US'})
 
-    d = loc.to_native()
+    d = loc.to_dict()
     assert d == {'country_code': 'US', 'country_name': 'United States'}
 
 
@@ -78,7 +72,7 @@ def test_serializable_with_custom_serializable_class():
     class PlayerIdType(LongType):
 
         def to_primitive(self, value, context=None):
-            return unicode(value)
+            return str(value)
 
     class Player(Model):
         id = LongType()
@@ -116,7 +110,7 @@ def test_serializable_with_model():
     assert d == {"total_points": 2, "xp_level": {"level": 4, "title": "Best"}}
 
 
-def test_serializable_with_model_to_native():
+def test_serializable_with_model_to_dict():
     class ExperienceLevel(Model):
         level = IntType()
         title = StringType()
@@ -132,7 +126,7 @@ def test_serializable_with_model_to_native():
 
     assert player.xp_level.level == 4
 
-    d = player.to_native()
+    d = player.to_dict()
     assert d == {"total_points": 2, "xp_level": {"level": 4, "title": "Best"}}
 
 
@@ -475,7 +469,7 @@ def test_serialize_none_fields_if_field_says_so():
 
     q = TestModel({'inst_id': 1})
 
-    d = export_loop(TestModel, q, lambda field, value: None)
+    d = export_loop(TestModel, q, lambda field, value, context: None)
     assert d == {'inst_id': None}
 
 
@@ -485,7 +479,7 @@ def test_serialize_none_fields_if_export_loop_says_so():
 
     q = TestModel({'inst_id': 1})
 
-    d = export_loop(TestModel, q, lambda field, value: None, print_none=True)
+    d = export_loop(TestModel, q, lambda field, value, context: None, export_level=DEFAULT)
     assert d == {'inst_id': None}
 
 
@@ -495,7 +489,7 @@ def test_serialize_print_none_always_gets_you_something():
 
     q = TestModel()
 
-    d = export_loop(TestModel, q, lambda field, value: None, print_none=True)
+    d = export_loop(TestModel, q, lambda field, value, context: None, export_level=DEFAULT)
     assert d == {}
 
 
@@ -760,7 +754,7 @@ def test_role_set_operations():
             n += 1
 
     class User(Model):
-        id = IntType(default=six.next(count(42)))
+        id = IntType(default=next(count(42)))
         name = StringType()
         email = StringType()
         password = StringType()
@@ -801,7 +795,7 @@ def test_role_set_operations():
 
     user = User(
         dict(
-            (k, v) for k, v in iteritems(data)
+            (k, v) for k, v in data.items()
             if k in User._options.roles['create']  # filter by 'create' role
         )
     )
@@ -823,7 +817,7 @@ def test_role_set_operations():
 
     d = user.serialize(role='empty')
 
-    assert d is None
+    assert d == {}
 
     d = user.serialize(role='everything')
 

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
-version_info = ('1', '1', '0')
+__version__ = '2.0.0.dev2'
 
-__version__ = '{0}.{1}.{2}'.format(*version_info)
+from .models import Model
+
+__all__ = ['Model']
+

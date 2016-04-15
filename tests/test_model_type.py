@@ -3,7 +3,7 @@ import pytest
 from schematics.models import Model
 from schematics.types import IntType, StringType
 from schematics.types.compound import ModelType, ListType
-from schematics.exceptions import ValidationError
+from schematics.exceptions import DataError
 
 
 def test_simple_embedded_models():
@@ -13,10 +13,6 @@ def test_simple_embedded_models():
     class Player(Model):
         id = IntType()
         location = ModelType(Location)
-
-    r = repr(Player.location)
-    assert r.startswith("<schematics.types.compound.ModelType object at 0x")
-    #assert r.endswith("for <class 'tests.test_model_type.Location'>>") #this assertion not compatible with PY3
 
     p = Player(dict(id=1, location={"country_code": "US"}))
 
@@ -28,8 +24,6 @@ def test_simple_embedded_models():
     assert isinstance(p.location, Location)
     assert p.location.country_code == "IS"
 
-    assert Player.location.to_native(None) is None
-
 
 def test_simple_embedded_models_is_none():
     class Location(Model):
@@ -40,6 +34,21 @@ def test_simple_embedded_models_is_none():
         location = ModelType(Location)
 
     p = Player(dict(id=1))
+
+    assert p.id == 1
+    assert p.location is None
+
+
+def test_simple_embedded_model_set_to_none():
+    class Location(Model):
+        country_code = StringType()
+
+    class Player(Model):
+        id = IntType()
+        location = ModelType(Location)
+
+    p = Player(dict(id=1))
+    p.location = None
 
     assert p.id == 1
     assert p.location is None
@@ -80,7 +89,7 @@ def test_raises_validation_error_on_init_with_partial_submodel():
     u = User({'name': 'Arthur'})
     c = Card({'user': u})
 
-    with pytest.raises(ValidationError):
+    with pytest.raises(DataError):
         c.validate()
 
 
@@ -153,3 +162,23 @@ def test_export_loop_with_subclassed_model():
 
     native = product.to_native()
     assert 'bucket_name' in native['asset']
+
+
+def test_mock_object():
+    class User(Model):
+        name = StringType(required=True)
+        age = IntType(required=True)
+
+    assert ModelType(User, required=True).mock() is not None
+
+
+def test_specify_model_by_name():
+
+    class M(Model):
+        to_one = ModelType('M')
+        to_many = ListType(ModelType('M'))
+        matrix = ListType(ListType(ModelType('M')))
+
+    assert M.to_one.model_class is M
+    assert M.to_many.field.model_class is M
+    assert M.matrix.field.field.model_class is M

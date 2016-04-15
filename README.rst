@@ -4,19 +4,30 @@ Schematics
 
 .. rubric:: Python Data Structures for Humans™.
 
-.. image:: https://secure.travis-ci.org/schematics/schematics.png?branch=master
-  :target: https://secure.travis-ci.org/schematics/schematics
-  :alt: Build Status
+.. image:: https://travis-ci.org/schematics/schematics.svg?branch=development
+   :target: https://travis-ci.org/schematics/schematics
+   :alt: Build Status
 
-.. image:: https://coveralls.io/repos/schematics/schematics/badge.png
-  :target: https://coveralls.io/r/schematics/schematics
-  :alt: Coverage
+.. image:: https://coveralls.io/repos/github/schematics/schematics/badge.svg?branch=development
+   :target: https://coveralls.io/github/schematics/schematics?branch=development 
+   :alt: Coverage
 
-**For more information, please see our documentation:** http://schematics.readthedocs.org/en/latest/
+
+News
+====
+
+After a period of sparse activity, Schematics has again been under heavy development as of late.
+
+It is recommended that new users get started with the latest development release instead
+of the stable release. To do this, add the ``--pre`` option when installing via ``pip``::
+
+    pip install --pre schematics
 
 
 About
 =====
+
+**Project documentation:** http://schematics.readthedocs.org/en/latest/
 
 Schematics is a Python library to combine types into structures, validate them,
 and transform the shapes of your data based on simple descriptions.
@@ -39,12 +50,10 @@ Some common use cases:
 + Custom `persistence layers <https://schematics.readthedocs.org/en/latest/usage/models.html#model-configuration>`_
 
 
-Examples
---------
+Example
+=======
 
-This is a simple Model.
-
-::
+This is a simple Model. ::
 
   >>> from schematics.models import Model
   >>> from schematics.types import StringType, URLType
@@ -57,17 +66,13 @@ This is a simple Model.
   >>> person.name
   u'Joe Strummer'
 
-Serializing the data to JSON.
-
-::
+Serializing the data to JSON. ::
 
   >>> import json
   >>> json.dumps(person.to_primitive())
   {"name": "Joe Strummer", "website": "http://soundcloud.com/joestrummer"}
 
-Let's try validating without a name value, since it's required.
-
-::
+Let's try validating without a name value, since it's required. ::
 
   >>> person = Person()
   >>> person.website = 'http://www.amontobin.com/'
@@ -75,12 +80,10 @@ Let's try validating without a name value, since it's required.
   Traceback (most recent call last):
     File "<stdin>", line 1, in <module>
     File "schematics/models.py", line 231, in validate
-      raise ModelValidationError(e.messages)
-  schematics.exceptions.ModelValidationError: {'name': [u'This field is required.']}
+      raise DataError(e.messages)
+  schematics.exceptions.DataError: {'name': ['This field is required.']}
 
-Add the field and validation passes
-
-::
+Add the field and validation passes::
 
   >>> person = Person()
   >>> person.name = 'Amon Tobin'
@@ -88,10 +91,13 @@ Add the field and validation passes
   >>> person.validate()
   >>>
 
+
+.. _coverage:
+
 Testing & Coverage support
 ==========================
-Run coverage and check the missing statements.
 
-::
+Run coverage and check the missing statements. ::
 
-  $ `coverage run --source schematics -m py.test && coverage report`
+  $ coverage run --source schematics -m py.test && coverage report
+
